@@ -1,4 +1,4 @@
-use crate::test_utils::JWT_SECRET;
+use crate::test_utils::DEFAULT_JWT_SECRET;
 use crate::{Config, ExecutionLayer, PayloadAttributes};
 use async_trait::async_trait;
 use eth2::types::{BlockId, StateId, ValidatorId};
@@ -61,7 +61,7 @@ impl<E: EthSpec> TestingBuilder<E> {
     ) -> Self {
         let file = NamedTempFile::new().unwrap();
         let path = file.path().into();
-        std::fs::write(&path, hex::encode(JWT_SECRET)).unwrap();
+        std::fs::write(&path, hex::encode(DEFAULT_JWT_SECRET)).unwrap();
 
         // This EL should not talk to a builder
         let config = Config {
@@ -215,6 +215,13 @@ impl<E: EthSpec> mev_build_rs::BlindedBlockProvider for MockBuilder<E> {
             .execution_payload
             .execution_payload
             .block_hash;
+        // FIXME(sproul): this is wrong, just doing this so it will compile.
+        let forkchoice_update_params = fork_choice::ForkchoiceUpdateParameters {
+            head_root: types::Hash256::zero(),
+            head_hash: None,
+            justified_hash: None,
+            finalized_hash: Some(finalized_execution_hash),
+        };
 
         let val_index = self
             .beacon_client
@@ -266,8 +273,8 @@ impl<E: EthSpec> mev_build_rs::BlindedBlockProvider for MockBuilder<E> {
                 head_execution_hash,
                 timestamp,
                 *prev_randao,
-                finalized_execution_hash,
                 fee_recipient,
+                forkchoice_update_params,
             )
             .await
             .map_err(convert_err)?
